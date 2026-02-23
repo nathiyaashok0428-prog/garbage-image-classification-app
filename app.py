@@ -1,106 +1,39 @@
-# =====================================================
-# Garbage Classification AI App (Streamlit)
-# =====================================================
-
 import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-import matplotlib.pyplot as plt
+import json
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
-# -------------------------------------------------
-# CONFIG
-# -------------------------------------------------
-IMG_SIZE = (224, 224)
-MODEL_PATH = "models/transfer_model.keras"
+# ================= LOAD MODEL =================
 
-CLASS_NAMES = [
-    "cardboard",
-    "glass",
-    "metal",
-    "paper",
-    "plastic",
-    "trash"
-]
+model = tf.keras.models.load_model("models/transfer_model.keras")
 
-# -------------------------------------------------
-# PAGE SETTINGS
-# -------------------------------------------------
-st.set_page_config(
-    page_title="Garbage Classification AI",
-    page_icon="♻️",
-    layout="wide"
-)
+with open("models/class_names.json", "r") as f:
+    class_names = json.load(f)
 
-st.title("♻️ Garbage Image Classification AI")
-st.markdown(
-    "Upload an image and the AI will classify the garbage type."
-)
+IMG_SIZE = (224,224)
 
-# -------------------------------------------------
-# LOAD MODEL (Cached)
-# -------------------------------------------------
-@st.cache_resource
-def load_model():
-    model = tf.keras.models.load_model(MODEL_PATH)
-    return model
+st.title("♻ Garbage Image Classification")
 
-model = load_model()
-
-# -------------------------------------------------
-# IMAGE PREPROCESS FUNCTION
-# -------------------------------------------------
-def preprocess_image(image):
-    image = image.resize(IMG_SIZE)
-    img_array = np.array(image)
-    img_array = tf.keras.applications.mobilenet_v2.preprocess_input(img_array)
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
-
-# -------------------------------------------------
-# FILE UPLOAD
-# -------------------------------------------------
-uploaded_file = st.file_uploader(
-    "Upload Garbage Image",
-    type=["jpg", "jpeg", "png"]
-)
+uploaded_file = st.file_uploader("Upload image", type=["jpg","png","jpeg"])
 
 if uploaded_file is not None:
 
     image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", width=300)
 
-    col1, col2 = st.columns(2)
+    # ===== PREPROCESS (🔥 FIXED) =====
+    img = image.resize(IMG_SIZE)
+    img_array = np.array(img, dtype=np.float32)
+    img_array = np.expand_dims(img_array, axis=0)
 
-    with col1:
-        st.subheader("Uploaded Image")
-        st.image(image, use_container_width=True)
+    img_array = preprocess_input(img_array)  # SAME AS TRAINING
 
-    # -------------------------
-    # PREDICTION
-    # -------------------------
-    img_array = preprocess_image(image)
+    # ===== PREDICTION =====
+    preds = model.predict(img_array)
+    class_idx = np.argmax(preds)
+    confidence = np.max(preds)
 
-    predictions = model.predict(img_array)[0]
-    predicted_class = CLASS_NAMES[np.argmax(predictions)]
-    confidence = np.max(predictions) * 100
-
-    with col2:
-        st.subheader("Prediction Result")
-
-        st.success(f"🧠 Predicted Class: **{predicted_class.upper()}**")
-        st.info(f"🎯 Confidence: **{confidence:.2f}%**")
-
-        # Probability chart
-        st.subheader("Prediction Probabilities")
-
-        fig, ax = plt.subplots(figsize=(6,4))
-        ax.barh(CLASS_NAMES, predictions)
-        ax.set_xlabel("Probability")
-        ax.set_xlim(0,1)
-        st.pyplot(fig)
-
-# -------------------------------------------------
-# FOOTER
-# -------------------------------------------------
-st.markdown("---")
-st.caption("Deep Learning Project — Garbage Image Classification")
+    st.subheader("Prediction")
+    st.success(f"{class_names[class_idx]} ({confidence*100:.2f}%)")
