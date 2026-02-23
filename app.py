@@ -17,7 +17,7 @@ CLASS_NAMES = ['cardboard','glass','metal','paper','plastic','trash']
 # ===============================
 @st.cache_resource
 def load_model():
-    return tf.keras.models.load_model("models/final_industry_model.keras")
+    return tf.keras.models.load_model("models/final_model.keras")
 
 model = load_model()
 
