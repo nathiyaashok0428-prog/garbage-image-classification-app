@@ -2,55 +2,46 @@ import streamlit as st
 import tensorflow as tf
 import numpy as np
 from PIL import Image
-import json
 import matplotlib.pyplot as plt
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 
-st.set_page_config(layout="wide")
+# =========================
+# LOAD MODEL
+# =========================
+model = tf.keras.models.load_model("models/final_model.keras")
+class_names = np.load("models/class_names.npy")
 
-# ===== LOAD =====
-model = tf.keras.models.load_model("models/transfer_model.keras")
-
-with open("models/class_names.json","r") as f:
-    class_names = json.load(f)
-
-IMG_SIZE = (224,224)
+st.set_page_config(page_title="Garbage Classifier", layout="wide")
 
 st.title("♻ Garbage Image Classification AI")
 
-uploaded_file = st.file_uploader("Upload image", type=["jpg","jpeg","png"])
+uploaded_file = st.file_uploader("Upload Image", type=["jpg","jpeg","png"])
 
-if uploaded_file:
-
+if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
-    col1,col2 = st.columns(2)
+    # =========================
+    # PREPROCESS IMAGE (CRITICAL FIX)
+    # =========================
+    img = image.resize((224, 224))
+    img_array = np.array(img)
+    img_array = preprocess_input(img_array)
+    img_array = np.expand_dims(img_array, axis=0)
 
-    with col1:
-        st.image(image, caption="Uploaded Image")
+    # =========================
+    # PREDICT
+    # =========================
+    predictions = model.predict(img_array)[0]
+    predicted_class = class_names[np.argmax(predictions)]
+    confidence = np.max(predictions)
 
-    # ===== PREPROCESS =====
-    img = image.resize(IMG_SIZE)
-    img = np.array(img).astype("float32")
-    img = np.expand_dims(img, axis=0)
-    img = preprocess_input(img)
+    st.success(f"Prediction: {predicted_class} ({confidence*100:.2f}%)")
 
-    # ===== PREDICT =====
-    preds = model.predict(img)[0]
-
-    pred_index = np.argmax(preds)
-    confidence = preds[pred_index]
-
-    with col2:
-        st.success(
-            f"Prediction: {class_names[pred_index]} ({confidence*100:.2f}%)"
-        )
-
-    # ===== GRAPH (FIXED) =====
+    # =========================
+    # PROBABILITY GRAPH
+    # =========================
     fig, ax = plt.subplots()
-    ax.bar(class_names, preds)
-    ax.set_ylabel("Confidence")
-    ax.set_title("Prediction Probabilities")
-    plt.xticks(rotation=45)
-
+    ax.barh(class_names, predictions)
+    ax.set_xlabel("Confidence")
     st.pyplot(fig)
