@@ -53,7 +53,7 @@ model = load_model()
 def preprocess_image(image):
     image = image.resize(IMG_SIZE)
     img_array = np.array(image)
-    img_array = img_array / 255.0
+    img_array = tf.keras.applications.mobilenet_v2.preprocess_input(img_array)
     img_array = np.expand_dims(img_array, axis=0)
     return img_array
 
