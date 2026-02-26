@@ -1,5 +1,6 @@
 import streamlit as st
 import tensorflow as tf
+from tensorflow.keras.applications.efficientnet import preprocess_input
 import numpy as np
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -21,11 +22,18 @@ model = load_model()
 # ======================
 # PREPROCESS IMAGE
 # ======================
+
 def preprocess_image(image):
     image = image.convert("RGB")
-    image = image.resize((224,224))
-    img_array = np.array(image).astype("float32") / 255.0
+    image = image.resize((224, 224))
+
+    img_array = np.array(image).astype("float32")
+
+    # ⭐ EfficientNet preprocessing (VERY IMPORTANT)
+    img_array = preprocess_input(img_array)
+
     img_array = np.expand_dims(img_array, axis=0)
+
     return img_array
 
 # ======================
